@@ -712,13 +712,18 @@ export default function PinEditor({ boards: initialBoards }: PinEditorProps) {
                   <>
                     <div className="relative w-full" style={{ aspectRatio: '9/16', maxHeight: '500px' }}>
                       <img
-                        src={imageUrl}
+                        src={imageUrl.startsWith('http') ? `/api/proxy-image?url=${encodeURIComponent(imageUrl)}` : imageUrl}
                         alt={altText || title || 'Pin preview'}
                         className="w-full h-full object-cover rounded-xl"
-                        crossOrigin="anonymous"
+                        referrerPolicy="no-referrer"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement
-                          target.style.display = 'none'
+                          // Fallback to direct URL if proxy fails
+                          if (target.src.includes('/api/proxy-image')) {
+                            target.src = imageUrl
+                          } else {
+                            target.style.display = 'none'
+                          }
                         }}
                       />
                     </div>
