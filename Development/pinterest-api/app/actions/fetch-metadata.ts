@@ -12,15 +12,39 @@ export interface MetadataResult {
 }
 
 export async function extractMetadata(url: string): Promise<MetadataResult> {
+  // Input validation
+  if (!url || typeof url !== 'string') {
+    return {
+      success: false,
+      error: "URL is required",
+    }
+  }
+
+  const trimmedUrl = url.trim()
+  if (!trimmedUrl) {
+    return {
+      success: false,
+      error: "URL cannot be empty",
+    }
+  }
+
   try {
     // URL validasyonu
     let parsedUrl: URL
     try {
-      parsedUrl = new URL(url)
+      parsedUrl = new URL(trimmedUrl)
     } catch {
       return {
         success: false,
         error: "Invalid URL format",
+      }
+    }
+
+    // Protocol kontrolü
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return {
+        success: false,
+        error: "URL must use http or https protocol",
       }
     }
 
@@ -59,7 +83,24 @@ export async function extractMetadata(url: string): Promise<MetadataResult> {
     }
 
     const html = await response.text()
-    const $ = cheerio.load(html)
+    
+    if (!html || html.length === 0) {
+      return {
+        success: false,
+        error: "Empty response from URL",
+      }
+    }
+
+    let $: cheerio.CheerioAPI
+    try {
+      $ = cheerio.load(html)
+    } catch (cheerioError) {
+      console.error("Cheerio parsing error:", cheerioError)
+      return {
+        success: false,
+        error: "Failed to parse HTML content",
+      }
+    }
 
     // Meta verileri çek
     const result: MetadataResult = {
@@ -116,11 +157,18 @@ export async function extractMetadata(url: string): Promise<MetadataResult> {
 
     return result
   } catch (error) {
-    console.error("Error extracting metadata:", error)
+    // Log full error for debugging
+    console.error("Error extracting metadata:", {
+      error,
+      errorType: error instanceof Error ? error.constructor.name : typeof error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      url: url,
+    })
     
     const errorMessage = error instanceof Error 
       ? error.message 
-      : "An unknown error occurred"
+      : String(error) || "An unknown error occurred"
 
     // Timeout hatası kontrolü
     if (errorMessage.includes("timeout") || errorMessage.includes("aborted") || errorMessage.includes("AbortError")) {
@@ -131,16 +179,32 @@ export async function extractMetadata(url: string): Promise<MetadataResult> {
     }
 
     // Network hatası kontrolü
-    if (errorMessage.includes("fetch") || errorMessage.includes("network") || errorMessage.includes("ECONNREFUSED")) {
+    if (errorMessage.includes("fetch") || errorMessage.includes("network") || errorMessage.includes("ECONNREFUSED") || errorMessage.includes("ENOTFOUND")) {
       return {
         success: false,
         error: "Unable to connect to the URL. Please check if the URL is accessible.",
       }
     }
 
+    // DNS hatası
+    if (errorMessage.includes("getaddrinfo") || errorMessage.includes("ENOTFOUND")) {
+      return {
+        success: false,
+        error: "Domain not found. Please check the URL.",
+      }
+    }
+
+    // SSL/TLS hatası
+    if (errorMessage.includes("certificate") || errorMessage.includes("SSL") || errorMessage.includes("TLS")) {
+      return {
+        success: false,
+        error: "SSL certificate error. The website may be using an invalid certificate.",
+      }
+    }
+
     return {
       success: false,
-      error: `Failed to extract metadata: ${errorMessage}`,
+      error: `Failed to extract metadata: ${errorMessage.substring(0, 200)}`,
     }
   }
 }

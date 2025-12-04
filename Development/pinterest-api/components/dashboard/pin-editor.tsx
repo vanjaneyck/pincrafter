@@ -113,15 +113,27 @@ export default function PinEditor({ boards: initialBoards }: PinEditorProps) {
       return
     }
 
+    // Basic URL validation
+    try {
+      new URL(smartImportUrl.trim())
+    } catch {
+      toast.error('Invalid URL', {
+        description: 'Please enter a valid URL (e.g., https://example.com)',
+      })
+      return
+    }
+
     setIsFetching(true)
 
     try {
-      const metadata = await extractMetadata(smartImportUrl)
+      const metadata = await extractMetadata(smartImportUrl.trim())
 
       if (!metadata.success) {
         toast.error('Failed to fetch metadata', {
           description: metadata.error || 'An unknown error occurred',
+          duration: 5000,
         })
+        setIsFetching(false)
         return
       }
 
@@ -143,13 +155,24 @@ export default function PinEditor({ boards: initialBoards }: PinEditorProps) {
         description: 'Form has been automatically filled',
       })
     } catch (error) {
+      console.error('Smart import error:', error)
+      
       const errorMessage = error instanceof Error 
         ? error.message 
         : 'An error occurred while fetching metadata'
       
-      toast.error('Error', {
-        description: errorMessage,
-      })
+      // Check for specific error types
+      if (errorMessage.includes('Server Components') || errorMessage.includes('digest')) {
+        toast.error('Server Error', {
+          description: 'Unable to fetch metadata. Please check the URL and try again.',
+          duration: 5000,
+        })
+      } else {
+        toast.error('Error', {
+          description: errorMessage.substring(0, 100),
+          duration: 5000,
+        })
+      }
     } finally {
       setIsFetching(false)
     }
