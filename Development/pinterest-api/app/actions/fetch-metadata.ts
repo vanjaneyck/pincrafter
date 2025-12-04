@@ -20,25 +20,41 @@ export async function extractMetadata(url: string): Promise<MetadataResult> {
     } catch {
       return {
         success: false,
-        error: "Geçersiz URL formatı",
+        error: "Invalid URL format",
       }
     }
 
     // URL'den HTML çek
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-      },
-      // Timeout için signal ekle
-      signal: AbortSignal.timeout(10000), // 10 saniye timeout
-    })
+    // Timeout için AbortController kullan (Node.js 18 uyumluluğu için)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 saniye timeout
+
+    let response: Response
+    try {
+      response = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.5",
+        },
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+    } catch (fetchError) {
+      clearTimeout(timeoutId)
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        return {
+          success: false,
+          error: "Request timed out. Please try again.",
+        }
+      }
+      throw fetchError
+    }
 
     if (!response.ok) {
       return {
         success: false,
-        error: `Sayfa yüklenemedi: ${response.status} ${response.statusText}`,
+        error: `Failed to load page: ${response.status} ${response.statusText}`,
       }
     }
 
@@ -104,19 +120,27 @@ export async function extractMetadata(url: string): Promise<MetadataResult> {
     
     const errorMessage = error instanceof Error 
       ? error.message 
-      : "Bilinmeyen bir hata oluştu"
+      : "An unknown error occurred"
 
     // Timeout hatası kontrolü
-    if (errorMessage.includes("timeout") || errorMessage.includes("aborted")) {
+    if (errorMessage.includes("timeout") || errorMessage.includes("aborted") || errorMessage.includes("AbortError")) {
       return {
         success: false,
-        error: "İstek zaman aşımına uğradı. Lütfen tekrar deneyin.",
+        error: "Request timed out. Please try again.",
+      }
+    }
+
+    // Network hatası kontrolü
+    if (errorMessage.includes("fetch") || errorMessage.includes("network") || errorMessage.includes("ECONNREFUSED")) {
+      return {
+        success: false,
+        error: "Unable to connect to the URL. Please check if the URL is accessible.",
       }
     }
 
     return {
       success: false,
-      error: `Meta veriler çekilemedi: ${errorMessage}`,
+      error: `Failed to extract metadata: ${errorMessage}`,
     }
   }
 }
