@@ -1,7 +1,7 @@
 "use server"
 
 import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { authOptions } from "@/app/api/auth/config"
 
 // Pinterest API base URL helper
 function getPinterestApiBaseUrl(): string {

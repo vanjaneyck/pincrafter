@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { getBoards } from '@/app/actions/pinterest'
+import { authOptions } from '@/app/api/auth/config'
+import { getBoards, type Board } from '@/app/actions/pinterest'
 import DashboardHeader from '@/components/dashboard/dashboard-header'
 import PinEditor from '@/components/dashboard/pin-editor'
 import CreateBoardButton from '@/components/dashboard/create-board-button'
@@ -14,7 +14,7 @@ export default async function Dashboard() {
     redirect('/')
   }
 
-  let boards = []
+  let boards: Board[] = []
   try {
     boards = await getBoards()
   } catch (error) {
