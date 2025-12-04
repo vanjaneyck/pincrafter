@@ -126,7 +126,28 @@ export default function PinEditor({ boards: initialBoards }: PinEditorProps) {
     setIsFetching(true)
 
     try {
-      const metadata = await extractMetadata(smartImportUrl.trim())
+      // Try API route first (more reliable on Render)
+      let metadata: any
+      try {
+        const response = await fetch('/api/fetch-metadata', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url: smartImportUrl.trim() }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Failed to fetch metadata' }))
+          throw new Error(errorData.error || `HTTP ${response.status}`)
+        }
+
+        metadata = await response.json()
+      } catch (apiError) {
+        // Fallback to server action if API route fails
+        console.warn('API route failed, trying server action:', apiError)
+        metadata = await extractMetadata(smartImportUrl.trim())
+      }
 
       if (!metadata.success) {
         toast.error('Failed to fetch metadata', {
