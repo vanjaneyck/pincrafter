@@ -3,6 +3,7 @@ services:
     name: postcrafter
     env: node
     plan: free
+    rootDir: Development/pinterest-api
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
