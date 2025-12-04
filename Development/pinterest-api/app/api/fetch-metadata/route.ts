@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import * as cheerio from 'cheerio'
+
+// Dynamic import for cheerio to avoid build issues
+async function loadCheerio() {
+  const cheerioModule = await import('cheerio')
+  // Handle both ESM and CJS exports
+  return (cheerioModule as any).default || cheerioModule
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -82,9 +88,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse HTML
-    let $: cheerio.CheerioAPI
+    let $: any
     try {
-      $ = cheerio.load(html)
+      const cheerio = await loadCheerio()
+      // Cheerio might be a namespace or have a load method directly
+      const loadFn = (cheerio as any).load || (cheerio as any).default?.load || cheerio
+      $ = typeof loadFn === 'function' ? loadFn(html) : loadFn.load(html)
     } catch (cheerioError) {
       console.error('Cheerio parsing error:', cheerioError)
       return NextResponse.json(
