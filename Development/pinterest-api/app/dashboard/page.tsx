@@ -7,8 +7,17 @@ import PinEditor from '@/components/dashboard/pin-editor'
 import CreateBoardButton from '@/components/dashboard/create-board-button'
 import Link from 'next/link'
 
+// Force dynamic rendering since we use getServerSession
+export const dynamic = 'force-dynamic'
+
 export default async function Dashboard() {
   try {
+    // Validate environment variables
+    if (!process.env.NEXTAUTH_SECRET) {
+      console.error('NEXTAUTH_SECRET is missing')
+      throw new Error('Server configuration error: NEXTAUTH_SECRET is required')
+    }
+
     const session = await getServerSession(authOptions)
 
     if (!session) {

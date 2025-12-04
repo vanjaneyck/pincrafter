@@ -23,8 +23,18 @@ export const authOptions: NextAuthOptions = {
       },
       token: `${getPinterestOAuthBaseUrl()}/oauth/token`,
       userinfo: `${getPinterestOAuthBaseUrl()}/user_account`,
-      clientId: process.env.PINTEREST_CLIENT_ID,
-      clientSecret: process.env.PINTEREST_CLIENT_SECRET,
+      clientId: process.env.PINTEREST_CLIENT_ID || (() => {
+        if (process.env.NODE_ENV === 'production') {
+          console.error('PINTEREST_CLIENT_ID is missing')
+        }
+        return ''
+      })(),
+      clientSecret: process.env.PINTEREST_CLIENT_SECRET || (() => {
+        if (process.env.NODE_ENV === 'production') {
+          console.error('PINTEREST_CLIENT_SECRET is missing')
+        }
+        return ''
+      })(),
       profile(profile: any) {
         return {
           id: profile.username || profile.id,
