@@ -1,11 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Use require for cheerio in API route (Node.js environment)
-let cheerio: any
-try {
-  cheerio = require('cheerio')
-} catch (e) {
-  console.error('Failed to load cheerio:', e)
+// Simple regex-based HTML parser (fallback if cheerio fails)
+function extractMetadataFromHTML(html: string): { title?: string; description?: string; image?: string } {
+  const result: { title?: string; description?: string; image?: string } = {}
+
+  // Extract og:title or title tag
+  const ogTitleMatch = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i)
+  const twitterTitleMatch = html.match(/<meta\s+name=["']twitter:title["']\s+content=["']([^"']+)["']/i)
+  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
+  
+  result.title = ogTitleMatch?.[1] || twitterTitleMatch?.[1] || titleMatch?.[1] || ''
+
+  // Extract og:description or meta description
+  const ogDescMatch = html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i)
+  const twitterDescMatch = html.match(/<meta\s+name=["']twitter:description["']\s+content=["']([^"']+)["']/i)
+  const metaDescMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i)
+  
+  result.description = ogDescMatch?.[1] || twitterDescMatch?.[1] || metaDescMatch?.[1] || ''
+
+  // Extract og:image
+  const ogImageMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i)
+  const twitterImageMatch = html.match(/<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i)
+  
+  result.image = ogImageMatch?.[1] || twitterImageMatch?.[1] || ''
+
+  return result
 }
 
 export async function POST(request: NextRequest) {
@@ -88,24 +107,42 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Parse HTML
-    if (!cheerio || typeof cheerio.load !== 'function') {
-      console.error('Cheerio is not available')
-      return NextResponse.json(
-        { success: false, error: 'Server configuration error: HTML parser not available' },
-        { status: 500 }
-      )
-    }
-
-    let $: any
+    // Parse HTML - Try cheerio first, fallback to regex
+    let metadata: { title?: string; description?: string; image?: string }
+    
     try {
-      $ = cheerio.load(html)
-    } catch (cheerioError) {
-      console.error('Cheerio parsing error:', cheerioError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to parse HTML content' },
-        { status: 500 }
-      )
+      // Try to use cheerio if available
+      let cheerio: any
+      try {
+        cheerio = require('cheerio')
+      } catch (e) {
+        console.warn('Cheerio not available, using regex parser')
+      }
+
+      if (cheerio && typeof cheerio.load === 'function') {
+        const $ = cheerio.load(html)
+        metadata = {
+          title: $('meta[property="og:title"]').attr('content') ||
+                 $('meta[name="twitter:title"]').attr('content') ||
+                 $('title').text() ||
+                 $('h1').first().text() ||
+                 '',
+          description: $('meta[property="og:description"]').attr('content') ||
+                       $('meta[name="twitter:description"]').attr('content') ||
+                       $('meta[name="description"]').attr('content') ||
+                       '',
+          image: $('meta[property="og:image"]').attr('content') ||
+                 $('meta[name="twitter:image"]').attr('content') ||
+                 $('meta[name="twitter:image:src"]').attr('content') ||
+                 '',
+        }
+      } else {
+        // Fallback to regex parser
+        metadata = extractMetadataFromHTML(html)
+      }
+    } catch (parseError) {
+      console.error('HTML parsing error, using regex fallback:', parseError)
+      metadata = extractMetadataFromHTML(html)
     }
 
     // Extract metadata
@@ -114,27 +151,9 @@ export async function POST(request: NextRequest) {
       url: trimmedUrl,
     }
 
-    // Title
-    result.title =
-      $('meta[property="og:title"]').attr('content') ||
-      $('meta[name="twitter:title"]').attr('content') ||
-      $('title').text() ||
-      $('h1').first().text() ||
-      ''
-
-    // Description
-    result.description =
-      $('meta[property="og:description"]').attr('content') ||
-      $('meta[name="twitter:description"]').attr('content') ||
-      $('meta[name="description"]').attr('content') ||
-      ''
-
-    // Image
-    let imageUrl =
-      $('meta[property="og:image"]').attr('content') ||
-      $('meta[name="twitter:image"]').attr('content') ||
-      $('meta[name="twitter:image:src"]').attr('content') ||
-      ''
+    result.title = metadata.title || ''
+    result.description = metadata.description || ''
+    let imageUrl = metadata.image || ''
 
     // Resolve relative image URLs
     if (imageUrl && !imageUrl.startsWith('http')) {
