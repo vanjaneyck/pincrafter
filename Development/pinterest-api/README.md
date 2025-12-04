@@ -57,6 +57,38 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Deployment to Render
+
+### Prerequisites
+
+1. A Render account (sign up at [render.com](https://render.com))
+2. GitHub repository connected to Render
+3. Pinterest API credentials
+
+### Steps
+
+1. **Create a new Web Service** in Render Dashboard
+2. **Connect your GitHub repository** (`vanjaneyck/pincrafter`)
+3. **Configure Build & Start Commands:**
+   - Build Command: `npm install && npm run build`
+   - Start Command: `npm start`
+4. **Set Environment Variables** in Render Dashboard:
+   ```
+   NODE_ENV=production
+   PINTEREST_API_ENV=sandbox
+   PINTEREST_CLIENT_ID=your_pinterest_client_id
+   PINTEREST_CLIENT_SECRET=your_pinterest_client_secret
+   NEXTAUTH_SECRET=your_nextauth_secret (generate with: openssl rand -base64 32)
+   NEXTAUTH_URL=https://your-app-name.onrender.com (will be auto-set by Render)
+   ```
+5. **Deploy!** Render will automatically build and deploy your app.
+
+### Important Notes
+
+- **NEXTAUTH_URL**: Render will automatically set this to your service URL. Make sure to update it if you change your service name.
+- **Pinterest OAuth Redirect**: Update your Pinterest app's redirect URI in Pinterest Developer Portal to: `https://your-app-name.onrender.com/api/auth/callback/pinterest`
+- The `render.yaml` file is included for automatic configuration (optional).
+
 ## Design Guidelines
 
 - Minimalist, clean SaaS design (Stripe/Vercel style)

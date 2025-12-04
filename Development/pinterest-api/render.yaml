@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: postcrafter
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PINTEREST_API_ENV
+        value: sandbox
+      - key: PINTEREST_CLIENT_ID
+        sync: false
+      - key: PINTEREST_CLIENT_SECRET
+        sync: false
+      - key: NEXTAUTH_SECRET
+        sync: false
+      # NEXTAUTH_URL will be automatically set by Render to your service URL
+      # Format: https://your-service-name.onrender.com
+
