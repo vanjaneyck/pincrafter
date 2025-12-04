@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Dynamic import for cheerio to avoid build issues
-async function loadCheerio() {
-  const cheerioModule = await import('cheerio')
-  // Handle both ESM and CJS exports
-  return (cheerioModule as any).default || cheerioModule
+// Use require for cheerio in API route (Node.js environment)
+let cheerio: any
+try {
+  cheerio = require('cheerio')
+} catch (e) {
+  console.error('Failed to load cheerio:', e)
 }
 
 export async function POST(request: NextRequest) {
@@ -88,12 +89,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse HTML
+    if (!cheerio || typeof cheerio.load !== 'function') {
+      console.error('Cheerio is not available')
+      return NextResponse.json(
+        { success: false, error: 'Server configuration error: HTML parser not available' },
+        { status: 500 }
+      )
+    }
+
     let $: any
     try {
-      const cheerio = await loadCheerio()
-      // Cheerio might be a namespace or have a load method directly
-      const loadFn = (cheerio as any).load || (cheerio as any).default?.load || cheerio
-      $ = typeof loadFn === 'function' ? loadFn(html) : loadFn.load(html)
+      $ = cheerio.load(html)
     } catch (cheerioError) {
       console.error('Cheerio parsing error:', cheerioError)
       return NextResponse.json(

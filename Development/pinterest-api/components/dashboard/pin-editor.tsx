@@ -137,16 +137,23 @@ export default function PinEditor({ boards: initialBoards }: PinEditorProps) {
           body: JSON.stringify({ url: smartImportUrl.trim() }),
         })
 
+        const responseData = await response.json()
+
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Failed to fetch metadata' }))
-          throw new Error(errorData.error || `HTTP ${response.status}`)
+          throw new Error(responseData.error || `HTTP ${response.status}`)
         }
 
-        metadata = await response.json()
+        metadata = responseData
       } catch (apiError) {
+        console.error('API route error:', apiError)
         // Fallback to server action if API route fails
-        console.warn('API route failed, trying server action:', apiError)
-        metadata = await extractMetadata(smartImportUrl.trim())
+        try {
+          console.log('Trying server action as fallback...')
+          metadata = await extractMetadata(smartImportUrl.trim())
+        } catch (actionError) {
+          console.error('Server action also failed:', actionError)
+          throw apiError // Throw the original API error
+        }
       }
 
       if (!metadata.success) {
