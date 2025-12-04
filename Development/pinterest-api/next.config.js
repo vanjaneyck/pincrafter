@@ -16,6 +16,14 @@ const nextConfig = {
       },
     ],
   },
+  // Ensure TypeScript path aliases work
+  typescript: {
+    // !! WARN !!
+    // Dangerously allow production builds to successfully complete even if
+    // your project has type errors.
+    // !! WARN !!
+    ignoreBuildErrors: false,
+  },
 }
 
 module.exports = nextConfig
