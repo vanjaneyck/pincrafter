@@ -711,12 +711,11 @@ export default function PinEditor({ boards: initialBoards }: PinEditorProps) {
                 {imageUrl ? (
                   <>
                     <div className="relative w-full" style={{ aspectRatio: '9/16', maxHeight: '500px' }}>
-                      <Image
+                      <img
                         src={imageUrl}
                         alt={altText || title || 'Pin preview'}
-                        fill
-                        className="object-cover rounded-xl"
-                        unoptimized
+                        className="w-full h-full object-cover rounded-xl"
+                        crossOrigin="anonymous"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement
                           target.style.display = 'none'
