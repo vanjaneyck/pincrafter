@@ -97,6 +97,12 @@ export const authOptions: NextAuthOptions = {
     signIn: "/",
     error: "/",
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || (() => {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('NEXTAUTH_SECRET is required in production')
+    }
+    return 'development-secret-change-in-production'
+  })(),
+  debug: process.env.NODE_ENV === 'development',
 }
 
